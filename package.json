@@ -1,15 +1,18 @@
 {
-  "name": "bex-cli",
+  "name": "@shubham1068/bex-cli",
   "version": "1.0.0",
-  "description": "a simple cli creation tool",
-  "bin": "./src/index.js",
+  "description": "CLI for scaffolding browser extension starter projects",
+  "bin": {
+    "bex-cli": "./src/index.js"
+  },
   "keywords": [
     "cli",
     "browser-extension",
-    "cli",
     "scaffolding",
     "chrome-extension",
-    "firefox-addon"
+    "firefox-addon",
+    "extension",
+    "manifest-v3"
   ],
   "homepage": "https://github.com/Abhiraj35/bex-cli#readme",
   "bugs": {
@@ -20,15 +23,30 @@
     "url": "git+https://github.com/Abhiraj35/bex-cli.git"
   },
   "license": "ISC",
-  "author": "",
+  "author": "Abhiraj (GitHub: Abhiraj35)",
+  "contributors": [
+    "Shubham Raj (GitHub: Shubham-1068)"
+  ],
   "type": "module",
-  "main": "/src/index.js",
+  "main": "./src/index.js",
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "preferGlobal": true,
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node src/index.js"
+    "check": "node --check src/index.js && node --check src/utils/file-generator.js && node --check src/utils/browser-configs.js",
+    "test": "npm run check",
+    "start": "node src/index.js",
+    "prepublishOnly": "npm run check"
   },
   "dependencies": {
     "@clack/prompts": "^0.7.0",
+    "@shubham1068/bex-cli": "^1.0.0",
     "chalk": "^5.3.0",
     "execa": "^8.0.1",
     "fs-extra": "^11.2.0",

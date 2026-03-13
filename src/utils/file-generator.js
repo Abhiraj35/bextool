@@ -1,8 +1,17 @@
 import fs from "fs-extra";
 import path from "path";
-import { fileURLToPath } from "url";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+function includesPopup(templateType) {
+  return templateType === "popup" || templateType === "full";
+}
+
+function includesBackground(templateType) {
+  return templateType !== "content";
+}
+
+function includesContent(templateType) {
+  return templateType === "content" || templateType === "full";
+}
 
 export const fileGenerator = {
   async generate(config) {
@@ -21,10 +30,19 @@ export const fileGenerator = {
     }
 
     await fs.ensureDir(targetPath);
-    const dirs = ["icons", "src", "src/popup", "src/background", "src/content"];
+    const dirs = [
+      "icons",
+      "scripts",
+      "src",
+      "src/popup",
+      "src/background",
+      "src/content",
+    ];
+
     for (const dir of dirs) {
       await fs.ensureDir(path.join(targetPath, dir));
     }
+
     await this.generateManifest(
       browser,
       {
@@ -37,13 +55,15 @@ export const fileGenerator = {
       targetPath,
     );
     await this.generateCommonFiles(templateType, targetPath);
-    await this.generatebrowserpecificFiles(browser, targetPath);
+    await this.generateBrowserSpecificFiles(browser, targetPath);
     await this.generatePackageJson(
       projectName,
       description,
       version,
+      templateType,
       targetPath,
     );
+    await this.generateScripts(targetPath);
     await this.generateReadme(projectName, description, browser, targetPath);
     await this.generatePlaceholderIcons(targetPath);
   },
@@ -51,13 +71,15 @@ export const fileGenerator = {
   async generateManifest(browser, config, targetPath) {
     const { projectName, description, version, permissions, templateType } =
       config;
-    let manifest = {
+
+    const manifest = {
       manifest_version: browser === "firefox" ? 2 : 3,
       name: projectName,
-      version: version,
-      description: description,
+      version,
+      description,
       permissions: permissions || ["storage"],
     };
+
     if (browser === "firefox") {
       manifest.browser_specific_settings = {
         gecko: {
@@ -65,32 +87,44 @@ export const fileGenerator = {
           strict_min_version: "57.0",
         },
       };
-      manifest.background = {
-        scripts: ["src/background/background.js"],
-      };
-      manifest.browser_action = {
-        default_popup: "src/popup/popup.html",
-        default_icon: {
-          16: "icons/icon16.png",
-          48: "icons/icon48.png",
-          128: "icons/icon128.png",
-        },
-      };
+
+      if (includesBackground(templateType)) {
+        manifest.background = {
+          scripts: ["src/background/background.js"],
+        };
+      }
+
+      if (includesPopup(templateType)) {
+        manifest.browser_action = {
+          default_popup: "src/popup/popup.html",
+          default_icon: {
+            16: "icons/icon16.png",
+            48: "icons/icon48.png",
+            128: "icons/icon128.png",
+          },
+        };
+      }
     } else {
-      manifest.background = {
-        service_worker: "src/background/background.js",
-        type: "module",
-      };
-      manifest.action = {
-        default_popup: "src/popup/popup.html",
-        default_icon: {
-          16: "icons/icon16.png",
-          48: "icons/icon48.png",
-          128: "icons/icon128.png",
-        },
-      };
+      if (includesBackground(templateType)) {
+        manifest.background = {
+          service_worker: "src/background/background.js",
+          type: "module",
+        };
+      }
+
+      if (includesPopup(templateType)) {
+        manifest.action = {
+          default_popup: "src/popup/popup.html",
+          default_icon: {
+            16: "icons/icon16.png",
+            48: "icons/icon48.png",
+            128: "icons/icon128.png",
+          },
+        };
+      }
     }
-    if (templateType === "content" || templateType === "full") {
+
+    if (includesContent(templateType)) {
       manifest.content_scripts = [
         {
           matches: ["<all_urls>"],
@@ -99,12 +133,13 @@ export const fileGenerator = {
         },
       ];
     }
+
     const manifestPath = path.join(targetPath, `manifest.${browser}.json`);
     await fs.writeJSON(manifestPath, manifest, { spaces: 2 });
   },
 
   async generateCommonFiles(templateType, targetPath) {
-    if (templateType === "popup" || templateType === "full") {
+    if (includesPopup(templateType)) {
       const popupHtml = `<!DOCTYPE html>
 <html>
 <head>
@@ -147,17 +182,13 @@ button:hover {
     const response = await chrome.runtime.sendMessage({ action: 'buttonClicked' });
     console.log('Background response:', response);
 });`;
-      await fs.writeFile(
-        path.join(targetPath, "src/popup/popup.html"),
-        popupHtml,
-      );
-      await fs.writeFile(
-        path.join(targetPath, "src/popup/popup.css"),
-        popupCss,
-      );
+
+      await fs.writeFile(path.join(targetPath, "src/popup/popup.html"), popupHtml);
+      await fs.writeFile(path.join(targetPath, "src/popup/popup.css"), popupCss);
       await fs.writeFile(path.join(targetPath, "src/popup/popup.js"), popupJs);
     }
-    if (templateType !== "content") {
+
+    if (includesBackground(templateType)) {
       const backgroundJs = `console.log('Background script loaded');
 chrome.runtime.onInstalled.addListener(() => {
     console.log('Extension installed');
@@ -168,15 +199,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         sendResponse({ status: 'Message received in background' });
     }
 });`;
+
       await fs.writeFile(
         path.join(targetPath, "src/background/background.js"),
         backgroundJs,
       );
     }
-    if (templateType === "content" || templateType === "full") {
+
+    if (includesContent(templateType)) {
       const contentJs = `console.log('Content script loaded');
 const elements = document.getElementsByTagName('h1');
-for (let element of elements) {
+for (const element of elements) {
     element.style.color = 'blue';
 }
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -187,28 +220,31 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     background-color: yellow;
     border: 2px solid orange;
 }`;
-      await fs.writeFile(
-        path.join(targetPath, "src/content/content.js"),
-        contentJs,
-      );
-      await fs.writeFile(
-        path.join(targetPath, "src/content/content.css"),
-        contentCss,
-      );
+
+      await fs.writeFile(path.join(targetPath, "src/content/content.js"), contentJs);
+      await fs.writeFile(path.join(targetPath, "src/content/content.css"), contentCss);
     }
   },
 
-  async generatebrowserpecificFiles(browser, targetPath) {
+  async generateBrowserSpecificFiles(browser, targetPath) {
     const loaderJs = `module.exports = require('./manifest.${browser}.json');`;
     await fs.writeFile(path.join(targetPath, "manifest.js"), loaderJs);
   },
 
-  async generatePackageJson(projectName, description, version, targetPath) {
+  async generatePackageJson(
+    projectName,
+    description,
+    version,
+    templateType,
+    targetPath,
+  ) {
     const packageJson = {
       name: projectName,
-      version: version,
-      description: description,
-      main: "src/background/background.js",
+      version,
+      description,
+      main: includesBackground(templateType)
+        ? "src/background/background.js"
+        : "manifest.js",
       scripts: {
         dev: "echo 'Watch mode not implemented yet'",
         build: "echo 'Build mode not implemented yet'",
@@ -221,9 +257,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         "fs-extra": "^11.2.0",
       },
     };
+
     await fs.writeJSON(path.join(targetPath, "package.json"), packageJson, {
       spaces: 2,
     });
+  },
+
+  async generateScripts(targetPath) {
+    const zipScript = `console.log("Zip packaging is not implemented yet.");`;
+    await fs.writeFile(path.join(targetPath, "scripts/zip.js"), zipScript);
   },
 
   async generateReadme(projectName, description, browser, targetPath) {
@@ -232,37 +274,44 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       browser === "firefox"
         ? '     - **Firefox**: Go to `about:debugging`, click "This Firefox", click "Load Temporary Add-on", and select `manifest.firefox.json`'
         : browser === "safari"
-          ? '     - **Safari**: Enable the Safari developer tools, then add the generated extension project through the Safari Extensions workflow'
-          : '     - **Chrome/Edge**: Go to `chrome://extensions`, enable Developer mode, click "Load unpacked", and select the `${projectName}` folder';
+          ? '     - **Safari**: Enable Safari developer tools, then add the generated extension project through the Safari Extensions workflow'
+          : `     - **Chrome/Edge**: Go to \`chrome://extensions\`, enable Developer mode, click "Load unpacked", and select the \`${projectName}\` folder`;
     const readme = `# ${projectName}
 ${description}
+
 ## Browser Support
-- ✅ ${browserName}
+- ${browserName}
+
 ## Project Structure
 \`\`\`
 ${projectName}/
-├── icons/
-├── src/
-│   ├── popup/
-│   ├── background/
-│   └── content/
-└── manifest.${browser}.json
+|-- icons/
+|-- scripts/
+|-- src/
+|   |-- popup/
+|   |-- background/
+|   \`-- content/
+\`-- manifest.${browser}.json
 \`\`\`
+
 ## Development
 1. Install dependencies:
-     \`\`\`bash
-     npm install
-     \`\`\`
+   \`\`\`bash
+   npm install
+   \`\`\`
 2. Load the extension in your browser:
 ${loadInstruction}
+
 ## Building for Production
 \`\`\`bash
 npm run build
 npm run zip
 \`\`\`
+
 ## License
 MIT
 `;
+
     await fs.writeFile(path.join(targetPath, "README.md"), readme);
   },
 
@@ -272,16 +321,16 @@ MIT
       const iconPath = path.join(targetPath, "icons", `icon${size}.png`);
       await fs.writeFile(iconPath, "");
     }
+
     const iconsReadme = `# Icons
 Replace these placeholder files with your actual icons.
+
 Required sizes:
 - icon16.png (16x16)
 - icon48.png (48x48)
 - icon128.png (128x128)
+
 Icons should be in PNG format.`;
-    await fs.writeFile(
-      path.join(targetPath, "icons", "README.md"),
-      iconsReadme,
-    );
+    await fs.writeFile(path.join(targetPath, "icons", "README.md"), iconsReadme);
   },
 };
