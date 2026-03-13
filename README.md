@@ -1,13 +1,13 @@
-# bex-cli
+# @shubham1068/bex-cli
 
-`bex-cli` is a command-line tool for scaffolding browser extension starter projects.
+`@shubham1068/bex-cli` is a command-line tool for scaffolding browser extension starter projects.
 
 It guides you through choosing a browser target, starter type, and permissions, then generates a ready-to-edit extension structure for Chrome, Firefox, Edge, or Safari.
 
 ## Installation
 
 ```bash
-npm install -g bex-cli
+npm install -g @shubham1068/bex-cli
 ```
 
 ## Usage
