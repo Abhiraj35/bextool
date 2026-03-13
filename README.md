@@ -1,19 +1,19 @@
-# @shubham1068/bex-cli
+# bextool
 
-`@shubham1068/bex-cli` is a command-line tool for scaffolding browser extension starter projects.
+`bextool` is a command-line tool for scaffolding browser extension starter projects.
 
 It guides you through choosing a browser target, starter type, and permissions, then generates a ready-to-edit extension structure for Chrome, Firefox, Edge, or Safari.
 
 ## Installation
 
 ```bash
-npm install -g @shubham1068/bex-cli
+npm install -g bextool
 ```
 
 ## Usage
 
 ```bash
-bex-cli
+bextool
 ```
 
 The CLI will prompt you for:

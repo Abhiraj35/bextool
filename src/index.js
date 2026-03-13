@@ -77,7 +77,7 @@ async function main() {
 
   p.intro(
     [
-      chalk.bold.hex(theme.primary)("BEX CLI"),
+      chalk.bold.hex(theme.primary)("BEXTOOL"),
       chalk.hex(theme.primarySoft)(
         "Scaffold a browser extension with a cleaner starting point.",
       ),
