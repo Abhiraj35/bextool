@@ -10,6 +10,12 @@ It guides you through choosing a browser target, starter type, and permissions, 
 npm install -g bextool
 ```
 
+Or run it without a global install:
+
+```bash
+npx bextool
+```
+
 ## Usage
 
 ```bash
